@@ -1,0 +1,4 @@
+*.npy
+*.png
+**/wts/
+**/loss/

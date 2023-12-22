@@ -60,7 +60,6 @@ class diff:
             self.apply_C_BC(C)
 
             err = np.max(np.abs(C-C_new))
-            
             widgets[-2] = progressbar.FormatLabel("Err : {0:4f}".format(err))
             bar.update(i+1)
             i+=1
