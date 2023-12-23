@@ -40,14 +40,6 @@ class diff:
         T = np.zeros_like(self.X)
         self.apply_C_BC(C)
 
-        
-
-        ## udC/dx = -kC
-        ## dC/dx = -kC/u 
-        ## C = -kC/u * x + c1
-        # dC = (dx/u)*( D*(d2C/dx2 + d2C/dy2)-kC )
-        # C[i+1] = C[i] + (dx/u)*( D*(d2C/dx2 + d2C/dy2)-kC )
-
         widgets = ['| ', progressbar.Timer(), ' | ', progressbar.Percentage(), ' ', progressbar.GranularBar(), ' ', progressbar.Counter(format='%(value)d/%(max_value)d'), ' ', ' | ', progressbar.ETA(), ' | ',progressbar.FormatLabel(""), ' | ']
         bar = progressbar.ProgressBar(max_value=max_iterations, widgets=widgets, term_width=150).start()
 
