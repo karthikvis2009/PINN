@@ -1,31 +1,37 @@
-#### Python code for steady-state Temp and reaction
+#### Python code for steady-state 2D mixing of hot and cold water in a T-bend
 
 
 import numpy as np
 import matplotlib.pyplot as plt
 import progressbar
+from mesh import msh
+from ns_new import NS2D as ns
 
-class diff:
-    def __init__(self,n):
+class T_junct:
+    def __init__(self):
+        
+        m = msh()
+        self.X,self.Y = m.X,m.Y
+        self.inds = m.gen_mesh()    #ind_in_main,ind_in_side,ind_out,ind_wall
+        
+        mesh_dict = {'X':m.X,'Y':m.Y,'dx' : m.dx,'dy' : m.dy,'inds':(self.inds,m.ind)}
 
-        #Geometry and mesh
-        self.x = np.linspace(0,0.1,n)
-        self.y = np.linspace(0,0.1,n)
-        self.dxy = self.x[1]-self.x[0]
-        self.Y,self.X = np.meshgrid(self.y,self.x)
-        u_max = 0.01
+        # m.plot_mesh(self.inds)
+
         self.mu = 0.001
         self.rho = 1000.0
         self.k = 0.1
         self.D = 6e-6
 
-        self.u = np.broadcast_to(u_max*(self.y/self.y[-1])*(2.0-(self.y/self.y[-1])),(self.X.shape))
+        consts_dict = {'rho':self.rho,'mu':self.mu}
+        bc_dict = {'u_in':0.001,'v_in':-0.001}
 
-        fig,ax = plt.subplots(figsize=(12,12))
-        ax.plot(self.y,self.u[int(len(self.x)/2),:])
-        ax.set_xlabel('y')
-        ax.set_ylabel(f'Velocity at x = {self.x[int(len(self.x)/2)]}')
-        plt.show()
+        n = ns(mesh_dict,consts_dict,bc_dict)
+        u,v = n.solver()
+        n.plot(u,v)
+        print('Solved')
+        #n.plot(m.x,m.y,u,v)
+
 
     def apply_C_BC(self,f):
         f[0,:] = 1.0
@@ -50,7 +56,7 @@ class diff:
             C_new = C.copy()
             C[1:,1:-1] = C_new[:-1,1:-1] + (self.dxy/self.u[:-1,1:-1])*(-self.k*C_new[:-1,1:-1])
             self.apply_C_BC(C)
-
+            
             err = np.max(np.abs(C-C_new))
             widgets[-2] = progressbar.FormatLabel("Err : {0:4f}".format(err))
             bar.update(i+1)
@@ -58,11 +64,7 @@ class diff:
         bar.finish()
         #self.save(self.x,self.y,C)
         return(C)
-    
-
         
-
-
 
 
     def plot(self,C):
@@ -79,6 +81,8 @@ class diff:
         plt.show()
 
 if __name__=="__main__":
-    m = diff(101)
-    C = m.solve()
-    m.plot(C)
+
+    te = T_junct()
+
+#     C = m.solve()
+#     m.plot(C)

@@ -20,7 +20,7 @@ class num():
         self.k = 0.5
         self.n = 1
 
-        self.path_save = r"./1D_unsteady/Num"
+        self.path_save = os.getcwd()+r"/1D_unsteady/Num"
 
     def pde(self):
 
@@ -35,7 +35,6 @@ class num():
         for i in range(len(self.t)-1):
             C_new = C.copy()
             C_new[1:,1:] = C[:-1,1:] + self.dt*(-self.u*(C[:-1,1:]-C[:-1,:-1])/self.dx - self.k*C[:-1,1:]**self.n)
-            #C_new[1:,-1] = C_new[1:,-2]
             C = C_new
         print(C.shape)
         return C
@@ -52,7 +51,7 @@ class num():
             ax.plot(x,C[i])
             ax.set_title('%03d' % (i))
             ax.set_xlabel("Location (x)")
-            ax.set_ylabel("Time (s)")
+            ax.set_ylabel("Concentration")
             ax.set_ylim([0.0,1.2])
 
         ani = animation.FuncAnimation(fig, animate,frames=len(t), interval=10,blit=False,repeat = True)
@@ -61,23 +60,22 @@ class num():
 
     def save(self,t,x,C):
         os.chdir(self.path_save)
-        np.save("t_PFR_num.npy", t)
-        np.save("x_PFR_num.npy", x)
-
-        np.save("C_PFR_num.npy", C)
+        np.save("t.npy", t)
+        np.save("x.npy", x)
+        np.save("C.npy", C)
 
     def load(self):
         os.chdir(self.path_save)
-        t1 = np.load("t_PFR_num.npy")
-        x1 = np.load("x_PFR_num.npy")
-        C1 = np.load("C_PFR_num.npy")
+        t1 = np.load("t.npy")
+        x1 = np.load("x.npy")
+        C1 = np.load("C.npy")
         return (t1, x1, C1)
 
 if __name__=="__main__":
 
     m = num(nx=101,nt=1001)
-    C=m.pde()
-    m.save(m.t,m.x,C)
+    # C=m.pde()
+    # m.save(m.t,m.x,C)
     t,x,C = m.load()
     m.plot(t[::10],x,C[::10,:])
     

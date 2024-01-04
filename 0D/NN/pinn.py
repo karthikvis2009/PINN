@@ -35,13 +35,13 @@ class PINN(Model):
 
         actDict = {tf.nn.tanh: "tanh", tf.nn.relu: "relu", tf.nn.sigmoid: "sigmoid", tf.nn.elu: "elu"}
 
-        self.save_ext = f"{nhl}_{npl}_{actDict[act]}_0D"
+        self.save_ext = f"{nhl}_{npl}_{actDict[act]}"
 
         self.batch_size = 32
 
         # lr=tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=1e-2,decay_rate=0.09,decay_steps=100)
 
-        self.train_op1 = tf.keras.optimizers.Adam(learning_rate=0.0001)
+        self.train_op1 = tf.keras.optimizers.Adam(learning_rate=0.00001)
 
         #Collocation points
         self.tc = np.linspace(0,10,10001)
@@ -49,8 +49,9 @@ class PINN(Model):
         #IC points
         self.t0 = tf.zeros(shape=(100,1))
 
-        self.path_wts = r"/home/karvis/Thesis/PINN/0D/NN/wts"
-        self.path_loss = r"/home/karvis/Thesis/PINN/0D/NN/loss"
+        self.path_wts = os.getcwd() + r"/0D/NN/wts"
+        self.path_loss = os.getcwd() + r"/0D/NN/loss"
+        self.path_data = os.getcwd() + r"/0D/Num"
 
     def call(self, inputs):
         c = self.Mod(inputs)
@@ -132,7 +133,7 @@ class PINN(Model):
 
         self.bar.finish()
 
-        os.chdir(path_loss)
+        os.chdir(self.path_loss)
         np.save(f"L_{self.save_ext}.npy", loss_t)
         os.chdir(self.path_wts)
         self.save_weights(f"weight_f_{self.save_ext}")
@@ -140,14 +141,14 @@ class PINN(Model):
         return epch, (loss_t)
 
     def predict(self, inputs):
-        os.chdir(path_wts)
+        os.chdir(self.path_wts)
         self.load_weights(f"weight_f_{self.save_ext}")
         op = self.call(inputs)
         return (op)
 
 
     def loss_plot(self):
-        os.chdir(path_loss)
+        os.chdir(self.path_loss)
         L = np.load(f"L_{self.save_ext}.npy")
         Epch = np.linspace(0, len(L), len(L))
         plt.plot(Epch, L)
@@ -174,10 +175,8 @@ class PINN(Model):
 
 # Training the model
 if __name__ == "__main__":
-    path_wts = r"/home/karvis/Thesis/PINN/0D/NN/wts"
-    path_loss = r"/home/karvis/Thesis/PINN/0D/NN/loss"
 
-    model = PINN(12, 50, tf.nn.tanh)
+    model = PINN(8, 100, tf.nn.relu)
 
     start = timer()
     epch, L = model.train(max_epochs=10000, pretrain=False)
@@ -186,7 +185,7 @@ if __name__ == "__main__":
     model.loss_plot()
 
     #Predict and plot
-    os.chdir(r"/home/karvis/Thesis/PINN/0D/Num")
+    os.chdir(model.path_data)
     t = np.load('t.npy')[::100]
     Cd = np.load('C.npy')[::100,:] 
     Cp = model.predict(t)
