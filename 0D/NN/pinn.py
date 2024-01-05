@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import progressbar
 
-
+tf.get_logger().setLevel('ERROR')
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
 
@@ -21,17 +21,9 @@ print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 class PINN(Model):
     def __init__(self, nhl, npl, act):
 
-        #nhl : [nhl for x-model, nhl for t-model, nhl for shared model]
         super(PINN, self).__init__()
 
-        self.nhl = nhl
-        self.Mod = Sequential()
-
-        for i in range(nhl):
-            self.Mod.add(Dense(npl,activation=act,kernel_initializer=tf.keras.initializers.GlorotUniform(seed=i)))
-        
-        self.Mod.add(Dense(3,kernel_initializer=tf.keras.initializers.GlorotUniform(seed=nhl+1)))
-        self.Mod.build([None,1])
+        self.Mod = self.create_model(nhl,npl,act)
 
         actDict = {tf.nn.tanh: "tanh", tf.nn.relu: "relu", tf.nn.sigmoid: "sigmoid", tf.nn.elu: "elu"}
 
@@ -40,8 +32,11 @@ class PINN(Model):
         self.batch_size = 32
 
         # lr=tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=1e-2,decay_rate=0.09,decay_steps=100)
+        
+        self.train_op1 = tf.keras.optimizers.Adam(learning_rate=0.001)
 
-        self.train_op1 = tf.keras.optimizers.Adam(learning_rate=0.00001)
+        self.Mod.compile(optimizer= self.train_op1, loss = self.loss_function)
+
 
         #Collocation points
         self.tc = np.linspace(0,10,10001)
@@ -49,45 +44,43 @@ class PINN(Model):
         #IC points
         self.t0 = tf.zeros(shape=(100,1))
 
+        self.ip = self.get_data(self.batch_size)
+
+
         self.path_wts = os.getcwd() + r"/0D/NN/wts"
-        self.path_loss = os.getcwd() + r"/0D/NN/loss"
+        self.path_plots = os.getcwd() + r"/0D/NN/plots"
         self.path_data = os.getcwd() + r"/0D/Num"
 
-    def call(self, inputs):
-        c = self.Mod(inputs)
-        return c
+    def create_model(self,nhl, npl, act):
+        mod = Sequential()
+        # mod.add(Dense(npl,activation=act,kernel_initializer=tf.keras.initializers.GlorotUniform(seed=i)))
+        for i in range(nhl):
+            mod.add(Dense(npl,activation=act,kernel_initializer=tf.keras.initializers.GlorotUniform(seed=i)))
+        
+        mod.add(Dense(3,kernel_initializer=tf.keras.initializers.GlorotUniform(seed=nhl+1)))
+        mod.build([None,1])
+
+        return mod
 
 
-    def loss_function(self, t):
+    def loss_function(self, y_true, y_pred):
 
         k1,k2,k3 = 1.0,0.9,0.3
-
+        t = self.ip
         with tf.GradientTape(persistent=True) as tape:
             tape.watch((self.t0,t))
-            C0 = self.call(self.t0)
-            C = self.call(t)
+            C0 = self.Mod.call(self.t0)
+            C = self.Mod.call(t)
 
             dAdt,dBdt,dCdt = tape.gradient((C[:,0],C[:,1],C[:,2]),(t,t,t))
 
-            L_IC = tf.reduce_mean((C0[:,0]-1.0)**2) + tf.reduce_mean((C0[:,1]-0.5)**2) + tf.reduce_mean((C0[:,2]-0.2)**2)
+        L_IC = tf.reduce_sum((C0[:,0]-1.0)**2) + tf.reduce_sum((C0[:,1]-0.5)**2) + tf.reduce_sum((C0[:,2]-0.2)**2)
 
-            L_ODE = tf.reduce_mean((dAdt+k1*C[:,0]*C[:,1]-k2*C[:,1]*C[:,2]+k3*C[:,0]*C[:,2])**2) +\
-            tf.reduce_mean((dBdt+k1*C[:,0]*C[:,1]+k2*C[:,1]*C[:,2]-k3*C[:,0]*C[:,2])**2)+\
-            tf.reduce_mean((dAdt-k1*C[:,0]*C[:,1]+k2*C[:,1]*C[:,2]+k3*C[:,0]*C[:,2])**2)
+        L_ODE = tf.reduce_sum((dAdt+k1*C[:,0]*C[:,1]-k2*C[:,1]*C[:,2]+k3*C[:,0]*C[:,2])**2) +\
+                tf.reduce_sum((dBdt+k1*C[:,0]*C[:,1]+k2*C[:,1]*C[:,2]-k3*C[:,0]*C[:,2])**2)+\
+                tf.reduce_sum((dCdt-k1*C[:,0]*C[:,1]+k2*C[:,1]*C[:,2]+k3*C[:,0]*C[:,2])**2)
         
         return L_IC + L_ODE
-    
-
-    def grad(self, mb_t):
-
-        with tf.GradientTape() as grad:
-            grad.watch((self.trainable_variables))
-            L = self.loss_function(mb_t)
-
-        g = grad.gradient(L, self.trainable_variables)
-
-        return g, L
-    
 
     def get_data(self, N):
 
@@ -98,65 +91,34 @@ class PINN(Model):
 
         return mb_t
 
-    def train(self, max_epochs, pretrain=True):
-        epch, loss_t = [], []
-        i = 0
-        os.chdir(self.path_wts)
-
-        if pretrain:
-            self.load_weights(f"weight_f_{self.save_ext}")
-            print("Weights have been loaded!")
-
-        else:
-            print("Training with Xavier initialization!")
-
-        mb_t = self.get_data(self.batch_size)
-        L = self.loss_function(mb_t)
-
+    def train(self,max_epochs):
         widgets = ['| ', progressbar.Timer(),' | ',progressbar.Percentage(), ' ', progressbar.GranularBar(), ' ', progressbar.Counter(format='%(value)d/%(max_value)d'),' ',' | ',progressbar.ETA(),\
-                   ' | ',progressbar.FormatLabel("")]
+                   ' | ',progressbar.FormatLabel(""), ' | ']
 
                    # ' ', progressbar.FormatLabel('Lp: %0.4f, Lv : %0.4f '%(L1,L2))]
-        self.bar = progressbar.ProgressBar(max_value=max_epochs, widgets=widgets, term_width=150).start()
+        bar = progressbar.ProgressBar(max_value=max_epochs, widgets=widgets, term_width=150).start()
+        loss = []
+        for i in range(max_epochs):
+            self.ip = self.get_data(self.batch_size)
+            # print(tf.reduce_max(self.ip))
+            h = self.Mod.fit(self.ip,tf.random.normal(shape=(32,1)),epochs=10,verbose=0)
+            self.Mod.reset_states()
+            widgets[-2] = progressbar.FormatLabel('L : {0:.4f}'.format(h.history['loss'][0]))
+            bar.update(i+1)
+            loss.append(h.history['loss'][0])
 
-        while i < max_epochs and L > 1e-5:
-
-            mb_t = self.get_data(self.batch_size)
-            g, L = self.grad(mb_t)
-            self.train_op1.apply_gradients(zip(g, self.trainable_variables))
-            epch.append(i)
-            loss_t.append(L)
-
-            widgets[-1] = progressbar.widgets.FormatLabel(' Lp : {0:.4f}'.format(L))
-            self.bar.update(i + 1)
-            i += 1
-
-        self.bar.finish()
-
-        os.chdir(self.path_loss)
-        np.save(f"L_{self.save_ext}.npy", loss_t)
         os.chdir(self.path_wts)
-        self.save_weights(f"weight_f_{self.save_ext}")
+        self.save_weights(f"weight_{self.save_ext}")
 
-        return epch, (loss_t)
+        bar.finish()
+        return loss
 
-    def predict(self, inputs):
+    def predict_funct(self, inputs):
         os.chdir(self.path_wts)
-        self.load_weights(f"weight_f_{self.save_ext}")
-        op = self.call(inputs)
+        self.load_weights(f"weight_{self.save_ext}").expect_partial()
+        op = self.Mod.predict(inputs)
         return (op)
 
-
-    def loss_plot(self):
-        os.chdir(self.path_loss)
-        L = np.load(f"L_{self.save_ext}.npy")
-        Epch = np.linspace(0, len(L), len(L))
-        plt.plot(Epch, L)
-        plt.xlabel("Iterations")
-        plt.ylabel(r"Loss (Mean squared)")
-        plt.title("Plot of Total Loss during training")
-        plt.savefig(r"loss_plot" + self.save_ext + ".png")
-        plt.show()
 
 
     def pred_plot(self, t, cpred, cdata):
@@ -169,26 +131,23 @@ class PINN(Model):
         ax.plot(t, cdata[:, 2],'b',label = "C Data")
         ax.set_ylabel("Concentration (C)")
         ax.set_xlabel("Time")
+        ax.set_title('Plot of concentrations vs time')
         ax.legend()
-        plt.show()
+        os.chdir(self.path_plots)
+        plt.savefig(f"Conc_{self.save_ext}.png")
 
 
 # Training the model
 if __name__ == "__main__":
 
-    model = PINN(8, 100, tf.nn.relu)
-
-    start = timer()
-    epch, L = model.train(max_epochs=10000, pretrain=False)
-    stop = timer()
-    print(f'\nTime taken for training is {stop - start} s')
-    model.loss_plot()
+    model = PINN(8, 50, tf.nn.tanh)
+    L = model.train(max_epochs=100)
 
     #Predict and plot
     os.chdir(model.path_data)
     t = np.load('t.npy')[::100]
     Cd = np.load('C.npy')[::100,:] 
-    Cp = model.predict(t)
+    Cp = model.predict_funct(t)
 
     model.pred_plot(t,Cp,Cd)
 
