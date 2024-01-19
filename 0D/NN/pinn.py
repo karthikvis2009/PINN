@@ -11,12 +11,16 @@ from timeit import default_timer as timer
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import progressbar
+import gc
+
 
 tf.get_logger().setLevel('ERROR')
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
 
 ##Dense Network
+
+
 
 class PINN(Model):
     def __init__(self, nhl, npl, act):
@@ -42,7 +46,7 @@ class PINN(Model):
         self.tc = np.linspace(0,10,10001)
 
         #IC points
-        self.t0 = tf.zeros(shape=(100,1))
+        self.t0 = tf.zeros(shape=(self.batch_size,1))
 
         self.ip = self.get_data(self.batch_size)
 
@@ -80,6 +84,8 @@ class PINN(Model):
                 tf.reduce_sum((dBdt+k1*C[:,0]*C[:,1]+k2*C[:,1]*C[:,2]-k3*C[:,0]*C[:,2])**2)+\
                 tf.reduce_sum((dCdt-k1*C[:,0]*C[:,1]+k2*C[:,1]*C[:,2]+k3*C[:,0]*C[:,2])**2)
         
+        del tape
+        
         return L_IC + L_ODE
 
     def get_data(self, N):
@@ -97,28 +103,28 @@ class PINN(Model):
 
                    # ' ', progressbar.FormatLabel('Lp: %0.4f, Lv : %0.4f '%(L1,L2))]
         bar = progressbar.ProgressBar(max_value=max_epochs, widgets=widgets, term_width=150).start()
-        loss = []
+
         for i in range(max_epochs):
             self.ip = self.get_data(self.batch_size)
             # print(tf.reduce_max(self.ip))
-            h = self.Mod.fit(self.ip,tf.random.normal(shape=(32,1)),epochs=10,verbose=0)
+            h = self.Mod.fit(self.ip,tf.random.normal(shape=(32,1)),epochs=1,verbose=0)
             self.Mod.reset_states()
             widgets[-2] = progressbar.FormatLabel('L : {0:.4f}'.format(h.history['loss'][0]))
             bar.update(i+1)
-            loss.append(h.history['loss'][0])
+            del h
+
 
         os.chdir(self.path_wts)
         self.save_weights(f"weight_{self.save_ext}")
 
         bar.finish()
-        return loss
+
 
     def predict_funct(self, inputs):
         os.chdir(self.path_wts)
         self.load_weights(f"weight_{self.save_ext}").expect_partial()
         op = self.Mod.predict(inputs)
         return (op)
-
 
 
     def pred_plot(self, t, cpred, cdata):
@@ -131,17 +137,24 @@ class PINN(Model):
         ax.plot(t, cdata[:, 2],'b',label = "C Data")
         ax.set_ylabel("Concentration (C)")
         ax.set_xlabel("Time")
-        ax.set_title('Plot of concentrations vs time')
+        ax.set_title(f'Plot of concentrations vs time')
         ax.legend()
         os.chdir(self.path_plots)
         plt.savefig(f"Conc_{self.save_ext}.png")
 
+    def clear_vars(self):
+        vars = dir()
+        for n in vars:
+            if not n.startswith('__'):
+                del n
+        gc.collect()
+        
 
 # Training the model
 if __name__ == "__main__":
 
     model = PINN(8, 50, tf.nn.tanh)
-    L = model.train(max_epochs=100)
+    model.train(max_epochs=100)
 
     #Predict and plot
     os.chdir(model.path_data)

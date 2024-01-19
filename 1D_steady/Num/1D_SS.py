@@ -11,6 +11,7 @@ class oneD_SS:
 		self.dx = self.x[1] - self.x[0]
 		self.u = u
 		self.k_r = 0.5
+		
 
 	def solver(self,max_iter = 10001,a_tol=1e-6):
 		#T = np.zeros_like(self.x)
@@ -75,6 +76,15 @@ if __name__ == "__main__":
 		ax.legend()
 		plt.show()
 
-	gen_data(u,path)
-	plot(u,path)
+	# gen_data(u,path)
+	
+	os.chdir(path)
+	r = np.random.choice(np.arange(0, len(u)), 1, replace=False)
+
+	C = np.load('C.npy')
+	x = np.load('x.npy')
+	print(C[:,r])
+	print(u.shape,C.shape)
+	# plot(u,path)
+
 

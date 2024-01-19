@@ -2,34 +2,56 @@ from pinn import PINN as p
 from timeit import default_timer as timer
 import tensorflow as tf
 import os
-import pickle
 import numpy as np
+import gc
 
-nhl = [6,8,10,12,16]
-npl = [20,50,100]
-act = [tf.nn.relu,tf.nn.tanh]
-actDict = {tf.nn.relu:"relu",tf.nn.tanh:"tanh"}
+def train():
 
-time_dict = {}
-final_loss = {}
-cwd = os.getcwd()
-for i in range(len(npl)):
-    for j in range(len(nhl)):
-        for k in range(len(act)):
-            os.chdir(cwd)
-            model = p(nhl[j], npl[i], act[k])
-            start = timer()
-            epch, L = model.train(max_epochs=10000, pretrain=False)
-            stop = timer()
-            t = stop-start
-            print(f'\nTime taken for training is {stop - start} s')
-            time_dict.update({f"t_{nhl[j]}_{npl[i]}_{actDict[act[k]]}":round(t,4)})
-            final_loss.update({f"L_{nhl[j]}_{npl[i]}_{actDict[act[k]]}":np.round(L[-1],4)})
 
-print(time_dict)
-os.chdir(model.path_loss)
-with open('final_losses.pkl', 'wb') as f:
-    pickle.dump(final_loss, f)
-with open('final_losses.pkl', 'rb') as f:
-    loaded_dict = pickle.load(f)
-    print(loaded_dict)
+    nhl = [6,8,10,12,16]
+    npl = [20,50,100]
+    # nhl = [6]
+    # npl = [50]
+    act = [tf.nn.relu,tf.nn.tanh,tf.nn.sigmoid]
+    actDict = {tf.nn.relu:"relu",tf.nn.tanh:"tanh",tf.nn.sigmoid:"sigmoid"}
+
+    err = np.zeros(shape=(len(nhl),len(npl),len(act)))
+    cwd = os.getcwd()
+    os.chdir(cwd+r'/0D/Num/')
+    t = np.load('t.npy')[::100]
+    Cd = np.load('C.npy')[::100,:]
+
+
+    for i in range(len(nhl)):
+        for j in range(len(npl)):
+            for k in range(len(act)):
+                os.chdir(cwd)
+                model = p(nhl[i], npl[j], act[k])
+                print(f'\nTraining {nhl[i]} , {npl[j]}, {actDict[act[k]]}:\n')
+                model.train(max_epochs=1000)
+                Cp = model.predict_funct(t)
+                err[i,j,k] = np.linalg.norm(Cd-Cp,2)/np.linalg.norm(Cd,2)
+                tf.keras.backend.clear_session()
+                model.clear_vars()
+                del model,Cp
+                gc.collect()
+
+
+    ind = np.where(err==err.min())
+
+    print(f'Minimum error with value err = {float(err[ind]):.4f} \nat nhl = {nhl[int(ind[0])]}, npl = {npl[int(ind[1])]} and act = {actDict[act[int(ind[2])]]}')
+
+    os.chdir(cwd+r'/0D/NN/')
+    np.save('err.npy',err)
+    os.chdir(cwd)
+
+    nhl_p = nhl[int(ind[0])]
+    npl_p = npl[int(ind[1])]
+    act_p = act[int(ind[2])]
+
+    model = p(nhl_p,npl_p,act_p)
+    Cp = model.predict_funct(t)
+    model.pred_plot(t,Cp,Cd)
+
+if __name__=="__main__":
+    train()
