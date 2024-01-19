@@ -20,10 +20,6 @@ print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
 ##Dense Network
 
-ip = np.random.normal(size=(10001,2))
-op = np.random.normal(size=(ip.shape[0],1))
-
-
 class PINN(Model):
     def __init__(self, nhl, npl, act, type):
 
@@ -41,7 +37,7 @@ class PINN(Model):
 
         # lr=tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=1e-2,decay_rate=0.09,decay_steps=100)
         
-        self.train_op1 = tf.keras.optimizers.Adam(learning_rate=0.001)
+        self.train_op1 = tf.keras.optimizers.Adam(learning_rate=0.0001)
 
 
 
@@ -219,6 +215,8 @@ class PINN(Model):
 
 # Training the model
 if __name__ == "__main__":
+
+    type = ['NN', 'PINN', 'data-PINN']
 
     model = PINN(8, 50, tf.nn.tanh,'data-PINN')
     model.train(max_epochs=10)
