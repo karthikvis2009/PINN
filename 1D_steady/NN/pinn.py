@@ -35,10 +35,9 @@ class PINN(Model):
 
         self.type_of_network = type
 
-        # lr=tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=1e-2,decay_rate=0.09,decay_steps=100)
+        lr=tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=1e-3,decay_rate=0.09,decay_steps=10000)
         
-        self.train_op1 = tf.keras.optimizers.Adam(learning_rate=0.0001)
-
+        self.train_op1 = tf.keras.optimizers.Adam(learning_rate=lr)
 
 
         self.path_wts = os.getcwd() + r"/1D_steady/NN/wts"

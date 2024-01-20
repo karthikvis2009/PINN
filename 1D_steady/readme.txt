@@ -16,6 +16,7 @@ data PINN : physics + data
 no data PINNs : Only physics
 
 Prediction errors:-
-NN : 10.8084
-PINN : 23.2346
-data-PINN : 28.9927
+NN : 6.5120
+PINN : 7.5443
+data-PINN : 7.1481
+27
