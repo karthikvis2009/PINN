@@ -90,11 +90,13 @@ class PINN(Model):
     def get_data(self, N):
 
         # Collocation points
-        r_c = np.random.choice(np.arange(0, len(self.tc)), N, replace=False)
+        r_t = np.random.choice(np.arange(0, len(self.tc)), N, replace=True)
+        r_x = np.random.choice(np.arange(0, len(self.xc)), N, replace=True)
 
-        mb_t = tf.convert_to_tensor(self.tc[r_c].reshape((-1,1)), dtype=tf.float32)
+        mb_t = tf.convert_to_tensor(self.tc[r_t].reshape((-1,1)), dtype=tf.float32)
+        mb_x = tf.convert_to_tensor(self.xc[r_x].reshape((-1,1)), dtype=tf.float32)
 
-        return mb_t
+        return mb_t,mb_x
 
     def train(self,max_epochs):
         widgets = ['| ', progressbar.Timer(),' | ',progressbar.Percentage(), ' ', progressbar.GranularBar(), ' ', progressbar.Counter(format='%(value)d/%(max_value)d'),' ',' | ',progressbar.ETA(),\

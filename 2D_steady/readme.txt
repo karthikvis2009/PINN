@@ -1,21 +1,51 @@
-2D steady state mixing of hot and cold incompressible fluids (water) in a T-junction
+2D steady case flow past a bump
+Bump is in the shape of a semicircle (Half-cylinder in 2D)
 
-Using k-epsilon turbulence model for Reynold's stess in RANS equations
+
+#################################################################################################################
+
+Geometry:
+-------------------------------------------------   ^
+|                                               |   |
+|                                               |   |
+|                                               |   |   0.05
+|       . .                                     |   |
+|     .     .                                   |   |
+-----.       .-----------------------------------   -
+
+<---><-------><--------------------------------->
+ 0.01  0.02                 0.07
+
+<----------------------------------------------->
+                    0.1
+
+
+Boundary Conditions:
+@ x = 0, u = 0.01 m/s   (Inlet Velocity)
+@ x = 0.1 (L), du/dx = 0, dv/dx = 0, p = 0      (Outlet pressure)
+@ y = bottom_wall, u = 0, v = 0, dp/dy = 0
+@ y = top_open, du/dy = 0, dv/dy = 0, dp/dy = 0
+
+Initial condition:
+u = 0
+p = 0
+
+#################################################################################################################
 
 Continuity :-
 du/dx + dv/dy = 0
 
 Momentum :-
 
-udu/dx + vdu/dy = -(1/rho)dP/dx + (1/rho)*(mu_eff*(d2u/dx2+d2u/dy2) + dmu_eff/dx*du/dx + dmu_eff/dy*du/dy)
-udv/dx + vdv/dy = -(1/rho)dP/dy + (1/rho)*(mu_eff*(d2v/dx2+d2v/dy2) + dmu_eff/dx*dv/dx + dmu_eff/dy*dv/dy)
+udu/dx + vdu/dy = -(1/rho)dP/dx + (1/rho)*(mu*(d2u/dx2+d2u/dy2))
+udv/dx + vdv/dy = -(1/rho)dP/dy + (1/rho)*(mu*(d2v/dx2+d2v/dy2))
 
-Energy equation:
+rho = 1000
+mu = 0.001
 
+Neural Network:
 
-
-
-mueff = mu + mut
+Input :- x,y ; Output :- u,v,p
 
 
 
