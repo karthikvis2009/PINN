@@ -2,3 +2,6 @@
 *.png
 **/wts/
 **/loss/
+**/plots/
+*.csv
+./2D_steady/Num/data.py
